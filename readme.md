@@ -83,7 +83,3 @@ npx react-native run-ios --mode release
 This project is licensed under the MIT License.
 
 ---
-
-## 📧 **Contact**
-
-For questions or suggestions, reach out to [Kaushal Bhalara <kaushalbhalra@webmyne.com>](mailto:kaushalbhalra@webmyne.com).
