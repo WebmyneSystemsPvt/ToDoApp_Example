@@ -1,6 +1,21 @@
 import React, { useLayoutEffect, useState, useEffect } from 'react';
-import { StyleSheet, Alert, View, Platform } from 'react-native';
-import { TextInput, Button, IconButton, useTheme, Snackbar } from 'react-native-paper';
+import {
+    StyleSheet,
+    Alert,
+    View,
+    Platform,
+    Modal,
+    TouchableOpacity,
+    Text,
+    Dimensions,
+} from 'react-native';
+import {
+    TextInput,
+    Button,
+    IconButton,
+    useTheme,
+    Snackbar,
+} from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { addTodo, updateTodo, deleteTodo } from '../store/slices/todoSlice';
@@ -9,6 +24,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { setLoading } from '../store/slices/loadingSlice';
 import { AppTheme } from '../theme/AppTheme';
 import { hp } from '../utils/utils';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const MODAL_HEIGHT = SCREEN_HEIGHT * 0.5; // ✅ Max 50% of screen height
 
 interface Props {
     route: any;
@@ -37,7 +55,7 @@ export const AddTodoScreen: React.FC<Props> = ({ route }) => {
         }
     }, [type, data]);
 
-    // ✅ Delete handler with confirmation
+    // ✅ Delete handler
     const handleDelete = () => {
         Alert.alert('Delete Task', 'Are you sure you want to delete this task?', [
             { text: 'Cancel', style: 'cancel' },
@@ -54,32 +72,16 @@ export const AddTodoScreen: React.FC<Props> = ({ route }) => {
     // ✅ Header setup
     useLayoutEffect(() => {
         navigation.setOptions({
-            title: `${type === 'add' ? 'Add' : 'Edit'}`,
-            headerTransparent: false,
-            headerBlurEffect: 'none',
-            headerStyle: {
-                backgroundColor: theme.colors.primary,
-                height: hp(5.5),
-
-            },
+            title: `${type === 'add' ? 'Add' : 'Edit'} Todo`,
+            headerStyle: { backgroundColor: theme.colors.primary },
             headerTintColor: '#fff',
             headerTitleStyle: { fontWeight: 'bold' },
             headerLeft: () => (
                 <IconButton
                     icon={'arrow-left'}
                     size={28}
-
                     iconColor={'#fff'}
-                    onPress={() => navigation.canGoBack() && navigation.goBack()}
-                    style={{
-                        backgroundColor: 'transparent',          // no tonal surface
-                        borderRadius: 0,                          // no rounded blur edges
-                        margin: 0,
-
-                        ...Platform.select({
-                            ios: { overflow: 'hidden' },           // avoid default ripple blur
-                        }),
-                    }}
+                    onPress={() => navigation.goBack()}
                     rippleColor="transparent"
                 />
             ),
@@ -92,21 +94,20 @@ export const AddTodoScreen: React.FC<Props> = ({ route }) => {
                         style={{
                             backgroundColor: AppTheme.colors.card,
                             borderRadius: 10,
-                            height: hp(4)
+                            height: hp(4),
                         }}
-
                         onPress={handleDelete}
                     />
                 ) : null,
         });
     }, [navigation, theme.colors.primary, type, data]);
 
-    // ✅ Handle Save
+    // ✅ Save handler
     const handleSave = () => {
         const trimmedTitle = title.trim();
 
         if (!trimmedTitle) {
-            Alert.alert('Validation Error', 'Please enter a title for the task.');
+            Alert.alert('Validation Error', 'Please enter a title.');
             return;
         }
 
@@ -139,29 +140,18 @@ export const AddTodoScreen: React.FC<Props> = ({ route }) => {
         navigation.goBack();
     };
 
-    // ✅ Date and Time Handlers
-    const onChangeDate = (event: any, selectedDate?: Date) => {
+    // ✅ Date/Time Picker Handlers
+    const openDatePicker = () => setShowDatePicker(true);
+    const openTimePicker = () => setShowTimePicker(true);
+
+    const handleConfirm = () => {
         setShowDatePicker(false);
-        if (selectedDate) {
-            const currentDate = new Date(selectedDate);
-            setDate(prev => {
-                const updated = new Date(prev);
-                updated.setFullYear(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-                return updated;
-            });
-        }
+        setShowTimePicker(false);
     };
 
-    const onChangeTime = (event: any, selectedTime?: Date) => {
+    const handleCancel = () => {
+        setShowDatePicker(false);
         setShowTimePicker(false);
-        if (selectedTime) {
-            const currentTime = new Date(selectedTime);
-            setDate(prev => {
-                const updated = new Date(prev);
-                updated.setHours(currentTime.getHours(), currentTime.getMinutes());
-                return updated;
-            });
-        }
     };
 
     return (
@@ -180,12 +170,12 @@ export const AddTodoScreen: React.FC<Props> = ({ route }) => {
                 style={[styles.input, { minHeight: hp(15), maxHeight: hp(50) }]}
             />
 
-            {/* ✅ Date & Time selection buttons */}
+            {/* ✅ Date & Time Buttons */}
             <View style={styles.datetimeRow}>
                 <Button
                     mode="outlined"
                     icon="calendar"
-                    onPress={() => setShowDatePicker(true)}
+                    onPress={openDatePicker}
                     style={styles.datetimeButton}
                 >
                     {date.toDateString()}
@@ -194,29 +184,75 @@ export const AddTodoScreen: React.FC<Props> = ({ route }) => {
                 <Button
                     mode="outlined"
                     icon="clock-outline"
-                    onPress={() => setShowTimePicker(true)}
+                    onPress={openTimePicker}
                     style={styles.datetimeButton}
                 >
                     {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Button>
             </View>
 
-            {showDatePicker && (
+            {/* ✅ iOS Bottom Sheet Style Picker */}
+            {Platform.OS === 'ios' && (showDatePicker || showTimePicker) && (
+                <Modal animationType="slide" transparent>
+                    <View style={styles.modalOverlay}>
+                        <TouchableOpacity
+                            style={styles.modalBackdrop}
+                            onPress={handleCancel}
+                            activeOpacity={1}
+                        />
+                        <View style={styles.bottomSheet}>
+                            <View style={styles.pickerHeader}>
+                                <TouchableOpacity onPress={handleCancel}>
+                                    <Text style={styles.cancelText}>Cancel</Text>
+                                </TouchableOpacity>
+
+                                <Text style={styles.pickerTitle}>
+                                    {showDatePicker ? 'Select Date' : 'Select Time'}
+                                </Text>
+
+                                <TouchableOpacity onPress={handleConfirm}>
+                                    <Text style={styles.confirmText}>Confirm</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <DateTimePicker
+                                value={date}
+                                mode={showDatePicker ? 'date' : 'time'}
+                                display="spinner"
+                                minimumDate={new Date()}
+                                onChange={(event, selected) => {
+                                    if (selected) setDate(selected);
+                                }}
+                                style={styles.dateTimePicker}
+                            />
+                        </View>
+                    </View>
+                </Modal>
+            )}
+
+            {/* ✅ Android Native Pickers */}
+            {Platform.OS === 'android' && showDatePicker && (
                 <DateTimePicker
                     value={date}
                     mode="date"
                     minimumDate={new Date()}
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={onChangeDate}
+                    display="default"
+                    onChange={(event, selected) => {
+                        setShowDatePicker(false);
+                        if (selected) setDate(selected);
+                    }}
                 />
             )}
 
-            {showTimePicker && (
+            {Platform.OS === 'android' && showTimePicker && (
                 <DateTimePicker
                     value={date}
                     mode="time"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={onChangeTime}
+                    display="default"
+                    onChange={(event, selected) => {
+                        setShowTimePicker(false);
+                        if (selected) setDate(selected);
+                    }}
                 />
             )}
 
@@ -257,5 +293,46 @@ const styles = StyleSheet.create({
         flex: 1,
         marginHorizontal: 4,
     },
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.3)',
+    },
+    modalBackdrop: {
+        flex: 1,
+    },
+    bottomSheet: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        height: MODAL_HEIGHT,
+        overflow: 'hidden',
+        paddingBottom: 20,
+    },
+    pickerHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderColor: '#ddd',
+    },
+    pickerTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    cancelText: {
+        color: '#ff3b30',
+        fontSize: 16,
+    },
+    confirmText: {
+        color: '#007AFF',
+        fontSize: 16,
+    },
+    dateTimePicker: {
+        flex: 1,
+    },
 });
 
+export default AddTodoScreen;

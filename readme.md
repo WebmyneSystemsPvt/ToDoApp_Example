@@ -16,7 +16,14 @@
 
 Follow these steps to set up the project:
 
-### 1. Install Dependencies
+### 1. Clone the Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/WebmyneSystemsPvt/ToDoApp_Example.git
+```
+
+### 2. Install Dependencies
 
 ```bash
 #For Android
